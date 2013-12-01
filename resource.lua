@@ -53,6 +53,11 @@ function QlessResource:acquire(now, priority, jid)
   assert(data, 'Acquire(): resource ' .. self.rid .. ' does not exist')
   assert(type(jid) ~= 'table', 'Acquire(): invalid jid')
 
+  -- check if already has a lock, then just return.  This is used for when multiple resources are needed.
+  if redis.call('sismember', self:prefix('locks'), jid) == 1 then
+    return true
+  end
+
   local remaining = data['max'] - redis.pcall('scard', keyLocks)
 
   if remaining > 0 then
@@ -62,7 +67,8 @@ function QlessResource:acquire(now, priority, jid)
     return true
   end
 
-  if redis.call('sismember', self:prefix('locks'), jid) == 0 then
+  -- check if already pending, then don't update its priority.
+  if redis.call('zscore', self:prefix('pending'), jid) == false then
     redis.call('zadd', self:prefix('pending'), priority - (now / 10000000000), jid)
   end
 
@@ -73,7 +79,7 @@ end
 -- @param now
 -- @param jid
 --
-function QlessResource:release(jid)
+function QlessResource:release(now, jid)
   local keyLocks = self:prefix('locks')
   local keyPending = self:prefix('pending')
 
@@ -88,13 +94,12 @@ function QlessResource:release(jid)
   local newJid = jids[1]
   local score = jids[2]
 
-  redis.call('sadd', keyLocks, newJid)
-  redis.call('zrem', keyPending, newJid)
-
-  local data = Qless.job(newJid):data()
-  local queue = Qless.queue(data['queue'])
-
-  queue.work.add(score, 0, newJid)
+  -- we know there is capacity to get this released resource but need to check all resources in case multiple.
+  if Qless.job(newJid):acquire_resources(now) then
+    local data = Qless.job(newJid):data()
+    local queue = Qless.queue(data['queue'])
+    queue.work.add(score, 0, newJid)
+  end
 
   return newJid
 end

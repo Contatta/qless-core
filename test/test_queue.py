@@ -858,3 +858,240 @@ class TestResources(TestQless):
         res = self.lua('resource.get', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-high'])
         self.assertEqual(res['pending'], ['jid-low'])
+
+class TestMultipleResources(TestQless):
+    """Queues should correctly handle jobs that require multiple resources"""
+    def test_job_acquires_multiple_and_releases(self):
+        """Jobs with multiple resources acquire both and release both"""
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-2', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1','r-2'])
+
+        #res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+
+        #self.assertEquals(len(res), 1)
+        #job = res[0]
+        #self.assertEquals(job['jid'], 'jid-1')
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+    def test_job_waits_on_one_of_multiple(self):
+
+        """Jobs with multiple resources waits on one"""
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-2', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
+        self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], ['jid-2'])
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+        #pop and complete the first job and the second one should get the other resource
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+        #pop and complete the second job
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.lua('complete', 17, 'jid-2', 'worker-1', 'queue', {})
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+    def test_job_waits_on_multiple(self):
+        """Jobs with multiple resources waits on multiple"""
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-2', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1','r-2'])
+        self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], ['jid-2'])
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], ['jid-2'])
+
+         #pop and complete the second job
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+    def test_job_multiple_limit(self):
+        """Jobs with multiple resources and at limit on one"""
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-2', 2)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1','r-2'])
+        self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], ['jid-2'])
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-1','jid-2'])
+        self.assertEqual(res['pending'], {})
+
+        #pop and complete the second job
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
+
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+    def test_job_multiple_wait_on_singles(self):
+        """Jobs with multiple resources waits on jobs with single resources"""
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-2', 1)
+
+        #finish this test.  Then add code to change resource count up and down
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
+        self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-2'])
+        self.lua('put', 2, None, 'queue', 'jid-3', 'klass', {}, 0, 'resources', ['r-1','r-2'])
+        self.lua('put', 3, None, 'queue', 'jid-4', 'klass', {}, 0, 'resources', ['r-1'])
+
+        # jobs 3 and 4 are witing on r-1
+        res = self.lua('resource.get', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], ['jid-3','jid-4'])
+
+        #job 3 is waiting on r-2
+        res = self.lua('resource.get', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], ['jid-3'])
+
+        #pop the job.  It should be jid-1
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.assertEqual(self.lua('workers', 16, 'worker-1'), {
+            'jobs': ['jid-1'],
+            'stalled': {}
+        })
+
+        self.lua('complete', 16, 'jid-1', 'worker-1', 'queue', {})
+
+        #pop again
+        res = self.lua('pop', 17, 'queue', 'worker-1', 1)
+        #r-1 is released, but jid-4 will have to get r-1 after jid-3
+        self.assertEqual(self.lua('workers', 18, 'worker-1'), {
+            'jobs': ['jid-2'],
+            'stalled': {}
+        })
+
+        # jobs 3 has the lock on r-1, job 4 is pending
+        res = self.lua('resource.get', 19, 'r-1')
+        self.assertEqual(res['locks'], ['jid-3'])
+        self.assertEqual(res['pending'], ['jid-4'])
+
+        #job 3 is waiting on r-1
+        res = self.lua('resource.get', 19, 'r-2')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], ['jid-3'])
+
+        #complete jid-2
+        self.lua('complete', 19, 'jid-2', 'worker-1', 'queue', {})
+
+        #pop again
+        res = self.lua('pop', 20, 'queue', 'worker-1', 1)
+
+        #test to make sure job-3 is not on a worker
+        self.assertEqual(self.lua('workers', 20, 'worker-1'), {
+            'jobs': ['jid-3'],
+            'stalled': {}
+        })
+
+         # jobs 3 has the lock on r-1, job 4 is pending
+        res = self.lua('resource.get', 20, 'r-1')
+        self.assertEqual(res['locks'], ['jid-3'])
+        self.assertEqual(res['pending'], ['jid-4'])
+
+        #job 3 has the lock on r-2
+        res = self.lua('resource.get', 20, 'r-2')
+        self.assertEqual(res['locks'], ['jid-3'])
+        self.assertEqual(res['pending'], {})
+
+         #complete jid-3
+        self.lua('complete', 21, 'jid-3', 'worker-1', 'queue', {})
+
+        #pop again
+        res = self.lua('pop', 21, 'queue', 'worker-1', 1)
+
+        self.assertEqual(self.lua('workers', 21, 'worker-1'), {
+            'jobs': ['jid-4'],
+            'stalled': {}
+        })
+
+        # jobs 4 has the lock on r-1
+        res = self.lua('resource.get', 21, 'r-1')
+        self.assertEqual(res['locks'], ['jid-4'])
+        self.assertEqual(res['pending'], {})
+
+        #r-2 is empty
+        res = self.lua('resource.get', 21, 'r-2')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
