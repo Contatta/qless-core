@@ -27,10 +27,47 @@ function QlessResource:data(...)
   return data
 end
 
-function QlessResource:set(max)
+function QlessResource:set(now, max)
   local max = assert(tonumber(max), 'Set(): Arg "max" not a number: ' .. tostring(max))
 
+  local data = self:data()
+  local current_max = 0
+  if data == nil then
+    current_max = max
+  else
+    current_max = data['max']
+  end
+
+  local keyLocks = self:prefix('locks')
+  local current_locks = redis.pcall('scard', keyLocks)
+  -- get the max of the current limit and the current locks
+  -- this is just in case the limit was decreased immediately before and the locks have not come down to the limit yet.
+  local confirm_limit = math.max(current_max,current_locks)
+  local max_change = max - confirm_limit
+  local keyPending = self:prefix('pending')
+
   redis.call('hmset', QlessResource.ns .. self.rid, 'rid', self.rid, 'max', max);
+
+  if max_change > 0 then
+    local jids = redis.call('zrevrange', keyPending, 0, max_change - 1, 'withscores')
+    local jid_count = #jids
+    if jid_count == 0 then
+      return self.rid
+    end
+
+    for i = 1, jid_count, 2 do
+
+      local newJid = jids[i]
+      local score = jids[i + 1]
+
+      -- we know there is capacity to get this released resource, need to check all resources in case waiting on multiple
+      if Qless.job(newJid):acquire_resources(now) then
+        local data = Qless.job(newJid):data()
+        local queue = Qless.queue(data['queue'])
+        queue.work.add(score, 0, newJid)
+      end
+    end
+  end
 
   return self.rid
 end

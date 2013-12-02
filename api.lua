@@ -214,7 +214,7 @@ end
 
 -- Resource apis
 QlessAPI['resource.set'] = function(now, rid, max)
-  return Qless.resource(rid):set(max)
+  return Qless.resource(rid):set(now, max)
 end
 
 QlessAPI['resource.get'] = function(now, rid)
