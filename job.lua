@@ -97,9 +97,17 @@ function QlessJob:complete(now, worker, queue, data, ...)
   local bin = now - (now % 86400)
 
   -- First things first, we should see if the worker still owns this job
-  local lastworker, state, priority, retries = unpack(
+  local lastworker, state, priority, retries, interval = unpack(
     redis.call('hmget', QlessJob.ns .. self.jid, 'worker', 'state',
-      'priority', 'retries', 'dependents'))
+      'priority', 'retries', 'throttle_interval'))
+
+  interval = tonumber(interval)
+  local next_run = 0
+  if interval > 0 then
+    next_run = now + interval
+  else
+    next_run = -1
+  end
 
   if lastworker == false then
     error('Complete(): Job does not exist')
@@ -224,7 +232,9 @@ function QlessJob:complete(now, worker, queue, data, ...)
       'failure', '{}',
       'queue', '',
       'expires', 0,
-      'remaining', tonumber(retries))
+      'remaining', tonumber(retries),
+      'throttle_next_run', next_run
+    )
     
     -- Do the completion dance
     local count = Qless.config.get('jobs-history-count')

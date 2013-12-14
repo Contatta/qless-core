@@ -555,6 +555,55 @@ class TestPut(TestQless):
         res = self.lua('put', 65, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0)
         self.assertEqual(res, 'jid-1')
 
+    def test_put_with_interval_throttles_consecutive_jobs(self):
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0, 'interval', 10)
+        self.lua('pop', 1, 'queue', 'worker-1', 1)
+        self.lua('complete', 5, 'jid-1', 'worker-1', 'queue', {})
+
+        res = self.lua('put', 6, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0, 'interval', 10)
+        self.assertEqual('jid-1', res)
+        res = self.lua('put', 7, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0, 'interval', 10)
+        self.assertEqual('jid-1', res)
+
+        res = self.lua('pop', 7, 'queue', 'worker-1', 1)
+        self.assertDictEqual(res, {})
+
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.assertEqual(res[0]['jid'], 'jid-1')
+
+    def test_put_with_changed_interval_allows_immediate_consecutive_jobs(self):
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0, 'interval', 10)
+        self.lua('pop', 1, 'queue', 'worker-1', 1)
+        self.lua('complete', 5, 'jid-1', 'worker-1', 'queue', {})
+
+        res = self.lua('put', 6, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0, 'interval', 10)
+        self.assertEqual('jid-1', res)
+        res = self.lua('pop', 7, 'queue', 'worker-1', 1)
+        self.assertDictEqual(res, {})
+
+        res = self.lua('put', 8, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0, 'interval', 0)
+        self.assertEqual('jid-1', res)
+
+        res = self.lua('pop', 7, 'queue', 'worker-1', 1)
+        self.assertEqual(res[0]['jid'], 'jid-1')
+
+    def test_put_with_interval_enforces_throttling_on_subsequent_jobs_when_omitted(self):
+        """This test ensures subsequent put calls without interval continue to enforce
+          throttling for that job
+        """
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0, 'interval', 10)
+        self.lua('pop', 1, 'queue', 'worker-1', 1)
+        self.lua('complete', 5, 'jid-1', 'worker-1', 'queue', {})
+
+        res = self.lua('put', 6, None, 'queue', 'jid-1', 'klass', {}, 0, 'replace', 0)
+        self.assertEqual('jid-1', res)
+        res = self.lua('pop', 7, 'queue', 'worker-1', 1)
+        self.assertDictEqual(res, {})
+
+        res = self.lua('pop', 15, 'queue', 'worker-1', 1)
+        self.assertEqual(res[0]['jid'], 'jid-1')
+
+
 
 
 

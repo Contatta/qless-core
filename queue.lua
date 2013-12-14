@@ -429,9 +429,11 @@ function QlessQueue:put(now, worker, jid, klass, raw_data, delay, ...)
 
   -- Let's see what the old priority and tags were
   local job = Qless.job(jid)
-  local priority, tags, oldqueue, state, failure, retries, oldworker =
+  local priority, tags, oldqueue, state, failure, retries, oldworker, interval, next_run =
     unpack(redis.call('hmget', QlessJob.ns .. jid, 'priority', 'tags',
-      'queue', 'state', 'failure', 'retries', 'worker'))
+      'queue', 'state', 'failure', 'retries', 'worker', 'throttle_interval', 'throttle_next_run'))
+
+  next_run = next_run or now
 
   -- true if empty or anything other than false
   local replace = assert(tonumber(options['replace'] or 1) ,
@@ -461,6 +463,20 @@ function QlessQueue:put(now, worker, jid, klass, raw_data, delay, ...)
 
   local resources = assert(cjson.decode(options['resources'] or '[]'),
     'Put(): Arg "resources" not JSON array: '     .. tostring(options['resources']))
+
+  local interval = assert(tonumber(options['interval'] or interval or 0),
+    'Put(): Arg "interval" not a number: ' .. tostring(options['interval']))
+
+  if interval > 0 then
+    local minimum_delay = next_run - now
+    if minimum_delay < 0 then
+      minimum_delay = 0
+    elseif minimum_delay > delay then
+      delay = minimum_delay
+    end
+  else
+    next_run = 0
+  end
 
   -- If the job has old dependencies, determine which dependencies are
   -- in the new dependencies but not in the old ones, and which are in the
@@ -561,6 +577,8 @@ function QlessQueue:put(now, worker, jid, klass, raw_data, delay, ...)
     'queue'    , self.name,
     'retries'  , retries,
     'remaining', retries,
+    'throttle_interval', interval,
+    'throttle_next_run', next_run,
     'time'     , string.format("%.20f", now))
 
   -- These are the jids we legitimately have to wait on
