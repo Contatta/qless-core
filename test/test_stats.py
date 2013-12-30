@@ -118,3 +118,24 @@ class TestStats(TestQless):
         self.lua('pop', 2, 'queue', 'worker', 10)
         self.assertEqual(self.lua('stats', 0, 'queue', 0)['failed'], 1)
         self.assertEqual(self.lua('stats', 0, 'queue', 0)['failures'], 1)
+
+    def test_resource_pending(self):
+        '''Resource pending stats'''
+        '''Can get stats for pending resources'''
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
+        self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1'])
+        self.assertEqual(self.lua('resource.stats_pending',0)[0]['name'],'ql:rs:r-1-pending')
+        self.assertEqual(self.lua('resource.stats_pending',0)[0]['count'], 1)
+        self.lua('resource.set', 0, 'r-2', 1)
+        self.lua('put', 0, None, 'queue', 'jid-3', 'klass', {}, 0, 'resources', ['r-2'])
+        self.lua('put', 1, None, 'queue', 'jid-4', 'klass', {}, 0, 'resources', ['r-2'])
+        self.assertEqual(self.lua('resource.stats_pending',0)[0]['name'],'ql:rs:r-1-pending')
+        self.assertEqual(self.lua('resource.stats_pending',0)[0]['count'], 1)
+        self.assertEqual(self.lua('resource.stats_pending',0)[1]['name'],'ql:rs:r-2-pending')
+        self.assertEqual(self.lua('resource.stats_pending',0)[1]['count'], 1)
+        self.lua('resource.set', 0, 'r-1', 2)
+        self.assertEqual(self.lua('resource.stats_pending',0)[0]['name'],'ql:rs:r-2-pending')
+        self.assertEqual(self.lua('resource.stats_pending',0)[0]['count'], 1)
+
+

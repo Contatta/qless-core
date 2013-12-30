@@ -101,6 +101,7 @@ function QlessResource:acquire(now, priority, jid)
     -- acquire a lock and release it from the pending queue
     redis.call('sadd', keyLocks, jid)
     redis.call('zrem', self:prefix('pending'), jid)
+
     return true
   end
 
@@ -147,6 +148,56 @@ function QlessResource:locks()
   return redis.call('scard', self:prefix('locks'))
 end
 
+--- Return the number pending for this resource
+--
+function QlessResource:pending()
+  return redis.call('zcard', self:prefix('pending'))
+end
+
 function QlessResource:exists()
   return redis.call('exists', self:prefix())
+end
+
+-- Return resources pending
+--  [
+--      {
+--          'name': 'res',
+--          'count': 5
+--      }, {
+--          'name': 'res',
+--          'count': 2
+--      }
+--  ]
+function QlessResource.pending_counts(now)
+  local search = QlessResource.ns..'*pending'
+  local reply = redis.call('keys', search)
+  local response = {}
+  for index, rname in ipairs(reply) do
+    local count = redis.call('zcard', rname)
+    local resStat = {name = rname, count = count}
+    table.insert(response,resStat)
+  end
+  return response
+end
+
+-- Return resources locks
+--  [
+--      {
+--          'name': 'res',
+--          'count': 5
+--      }, {
+--          'name': 'res',
+--          'count': 2
+--      }
+--  ]
+function QlessResource.locks_counts(now)
+  local search = QlessResource.ns..'*locks'
+  local reply = redis.call('keys', search)
+  local response = {}
+  for index, rname in ipairs(reply) do
+    local count = redis.call('scard', rname)
+    local resStat = {name = rname, count = count}
+    table.insert(response,resStat)
+  end
+  return response
 end

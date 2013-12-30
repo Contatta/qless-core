@@ -101,14 +101,6 @@ function QlessJob:complete(now, worker, queue, data, ...)
     redis.call('hmget', QlessJob.ns .. self.jid, 'worker', 'state',
       'priority', 'retries', 'throttle_interval'))
 
-  interval = tonumber(interval)
-  local next_run = 0
-  if interval > 0 then
-    next_run = now + interval
-  else
-    next_run = -1
-  end
-
   if lastworker == false then
     error('Complete(): Job does not exist')
   elseif (state ~= 'running') then
@@ -116,6 +108,14 @@ function QlessJob:complete(now, worker, queue, data, ...)
   elseif lastworker ~= worker then
     error('Complete(): Job has been handed out to another worker: ' ..
       tostring(lastworker))
+  end
+
+  interval = tonumber(interval)
+  local next_run = 0
+  if interval > 0 then
+    next_run = now + interval
+  else
+    next_run = -1
   end
 
   -- Now we can assume that the worker does own the job. We need to
