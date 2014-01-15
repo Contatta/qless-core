@@ -110,12 +110,14 @@ function QlessJob:complete(now, worker, queue, data, ...)
       tostring(lastworker))
   end
 
-  interval = tonumber(interval)
   local next_run = 0
-  if interval > 0 then
-    next_run = now + interval
-  else
-    next_run = -1
+  if interval then
+      interval = tonumber(interval)
+    if interval > 0 then
+      next_run = now + interval
+    else
+      next_run = -1
+    end
   end
 
   -- Now we can assume that the worker does own the job. We need to
