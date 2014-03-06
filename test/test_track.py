@@ -36,6 +36,7 @@ class TestTrack(TestQless):
                 'data': '{}',
                 'remaining': 5,
                 'resources': {},
+                'result_data': {},
                 'history': [{
                     'q': 'queue', 'what': 'put', 'when': 0
                 }]

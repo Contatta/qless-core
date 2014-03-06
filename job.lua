@@ -11,7 +11,7 @@ function QlessJob:data(...)
   local job = redis.call(
       'hmget', QlessJob.ns .. self.jid, 'jid', 'klass', 'state', 'queue',
       'worker', 'priority', 'expires', 'retries', 'remaining', 'data',
-      'tags', 'failure', 'resources')
+      'tags', 'failure', 'resources', 'result_data')
 
   -- Return nil if we haven't found it
   if not job[1] then
@@ -35,6 +35,7 @@ function QlessJob:data(...)
     history      = self:history(),
     failure      = cjson.decode(job[12] or '{}'),
     resources    = cjson.decode(job[13] or '[]'),
+    result_data  = cjson.decode(job[14] or '{}'),
     dependents   = redis.call(
       'smembers', QlessJob.ns .. self.jid .. '-dependents'),
     dependencies = redis.call(
@@ -77,10 +78,11 @@ function QlessJob:complete(now, worker, queue, data, ...)
   for i = 1, #arg, 2 do options[arg[i]] = arg[i + 1] end
   
   -- Sanity check on optional args
-  local nextq   = options['next']
-  local delay   = assert(tonumber(options['delay'] or 0))
-  local depends = assert(cjson.decode(options['depends'] or '[]'),
-    'Complete(): Arg "depends" not JSON: ' .. tostring(options['depends']))
+  local nextq       = options['next']
+  local result_data = options['result_data']
+  local delay       = assert(tonumber(options['delay'] or 0))
+  local depends     = assert(cjson.decode(options['depends'] or '[]'),
+  'Complete(): Arg "depends" not JSON: ' .. tostring(options['depends']))
 
   -- Depends doesn't make sense without nextq
   if options['delay'] and nextq == nil then
@@ -130,6 +132,10 @@ function QlessJob:complete(now, worker, queue, data, ...)
 
   if data then
     redis.call('hset', QlessJob.ns .. self.jid, 'data', cjson.encode(data))
+  end
+
+  if result_data then
+    redis.call('hset', QlessJob.ns .. self.jid, 'result_data', result_data)
   end
 
   -- Remove the job from the previous queue

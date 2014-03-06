@@ -59,6 +59,7 @@ class TestLocks(TestQless):
                 'tags': {},
                 'tracked': False,
                 'resources': {},
+                'result_data': {},
                 'worker': 'another'}])
         # When we try to heartbeat, it should raise an exception
         self.assertRaisesRegexp(redis.ResponseError, r'given out to another',
@@ -276,6 +277,7 @@ class TestRetry(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
             'worker': u''})
 
     def test_retry_delay(self):
@@ -326,6 +328,7 @@ class TestRetry(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
             'worker': u''
         })
 

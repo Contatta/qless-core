@@ -389,6 +389,7 @@ class TestPut(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
             'worker': u''
         })
 
@@ -462,6 +463,7 @@ class TestPut(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
             'worker': u''})
 
     def test_move_update(self):
@@ -644,6 +646,7 @@ class TestPeek(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
             'worker': u''
         }])
         # With several jobs in the queue, we should be able to see more
@@ -749,6 +752,7 @@ class TestPop(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
             'worker': 'worker'}])
 
     def test_pop_many(self):

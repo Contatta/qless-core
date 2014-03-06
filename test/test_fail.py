@@ -46,6 +46,7 @@ class TestFail(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
             'worker': u''})
 
     def test_put(self):

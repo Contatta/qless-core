@@ -579,7 +579,8 @@ function QlessQueue:put(now, worker, jid, klass, raw_data, delay, ...)
     'remaining', retries,
     'throttle_interval', interval,
     'throttle_next_run', next_run,
-    'time'     , string.format("%.20f", now))
+    'time'     , string.format("%.20f", now),
+    'result_data', '{}')
 
   -- These are the jids we legitimately have to wait on
   for i, j in ipairs(depends) do

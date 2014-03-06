@@ -135,6 +135,35 @@ class TestComplete(TestQless):
             'tags': {},
             'tracked': False,
             'resources': {},
+            'result_data': {},
+            'worker': u''})
+
+    def test_result_data(self):
+        self.maxDiff = None
+        '''Can complete and set result_data'''
+        self.lua('put', 0, 'worker', 'queue', 'jid', 'klass', {}, 0)
+        self.lua('pop', 1, 'queue', 'worker', 10)
+        self.lua('complete', 2, 'jid', 'worker', 'queue', {}, 'result_data', {'key':'value'})
+        self.assertEqual(self.lua('get', 3, 'jid'), {
+            'data': '{}',
+            'dependencies': {},
+            'dependents': {},
+            'expires': 0,
+            'failure': {},
+            'history': [{'q': 'queue', 'what': 'put', 'when': 0},
+                        {'what': 'popped', 'when': 1, 'worker': 'worker'},
+                        {'what': 'done', 'when': 2}],
+            'jid': 'jid',
+            'klass': 'klass',
+            'priority': 0,
+            'queue': u'',
+            'remaining': 5,
+            'retries': 5,
+            'state': 'complete',
+            'tags': {},
+            'tracked': False,
+            'resources': {},
+            'result_data': {'key':'value'},
             'worker': u''})
 
     def test_advance(self):
