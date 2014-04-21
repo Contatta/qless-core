@@ -463,6 +463,7 @@ function QlessQueue:put(now, worker, jid, klass, raw_data, delay, ...)
 
   local resources = assert(cjson.decode(options['resources'] or '[]'),
     'Put(): Arg "resources" not JSON array: '     .. tostring(options['resources']))
+  assert(#resources == 0 or QlessResource.all_exist(resources), 'Put(): invalid resources requested')
 
   local interval = assert(tonumber(options['interval'] or interval or 0),
     'Put(): Arg "interval" not a number: ' .. tostring(options['interval']))

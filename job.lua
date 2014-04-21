@@ -838,9 +838,87 @@ function QlessJob:acquire_resources(now)
   end
 
   local acquired_all = true
+
   for _, res in ipairs(resources) do
-    local acquire_ret = Qless.resource(res):acquire(now, priority, self.jid)
-    acquired_all = acquired_all and acquire_ret
+    local ok, res = pcall(function() return Qless.resource(res):acquire(now, priority, self.jid) end)
+    if not ok then
+      self:set_failed(now, 'system:fatal', res.msg)
+      return false
+    end
+    acquired_all = acquired_all and res
   end
+--  if acquired_all == false then
+--    redis.call('hset', QlessJob.ns .. self.jid, 'state', state)
+--  end
   return acquired_all
+end
+
+function QlessJob:set_failed(now, group, message, worker, release_work, release_resources)
+  local group             = assert(group, 'Fail(): Arg "group" missing')
+  local message           = assert(message, 'Fail(): Arg "message" missing')
+  local worker            = worker or 'none'
+  local release_work      = release_work or true
+  local release_resources = release_resources or false
+
+  -- The bin is midnight of the provided day
+  -- 24 * 60 * 60 = 86400
+  local bin = now - (now % 86400)
+
+  local queue = unpack(redis.call('hmget', QlessJob.ns .. self.jid, 'queue'))
+
+  -- Send out a log message
+  Qless.publish('log', cjson.encode({
+    jid     = self.jid,
+    event   = 'failed',
+    worker  = worker,
+    group   = group,
+    message = message
+  }))
+
+  if redis.call('zscore', 'ql:tracked', self.jid) ~= false then
+    Qless.publish('failed', self.jid)
+  end
+
+  -- Now, take the element of the history for which our provided worker is
+  -- the worker, and update 'failed'
+  self:history(now, 'failed', {group = group})
+
+  -- Increment the number of failures for that queue for the
+  -- given day.
+  redis.call('hincrby', 'ql:s:stats:' .. bin .. ':' .. queue, 'failures', 1)
+  redis.call('hincrby', 'ql:s:stats:' .. bin .. ':' .. queue, 'failed'  , 1)
+
+  -- Now remove the instance from the schedule, and work queues for the
+  -- queue it's in
+  if release_work then
+    local queue_obj = Qless.queue(queue)
+    queue_obj.work.remove(self.jid)
+    queue_obj.locks.remove(self.jid)
+    queue_obj.scheduled.remove(self.jid)
+  end
+
+  -- release any resource locks the job might have
+  if release_resources then
+    self:release_resources(now)
+  end
+
+  redis.call('hmset', QlessJob.ns .. self.jid,
+    'state', 'failed',
+    'worker', '',
+    'expires', '',
+    'failure', cjson.encode({
+      ['group']   = group,
+      ['message'] = message,
+      ['when']    = math.floor(now)
+    }))
+
+  -- Add this group of failure to the list of failures
+  redis.call('sadd', 'ql:failures', group)
+  -- And add this particular instance to the failed groups
+  redis.call('lpush', 'ql:f:' .. group, self.jid)
+
+  -- Here is where we'd increment stats about the particular stage
+  -- and possibly the workers
+
+  return self.jid
 end

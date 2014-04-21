@@ -87,8 +87,14 @@ end
 function QlessResource:acquire(now, priority, jid)
   local keyLocks = self:prefix('locks')
   local data = self:data()
-  assert(data, 'Acquire(): resource ' .. self.rid .. ' does not exist')
-  assert(type(jid) ~= 'table', 'Acquire(): invalid jid')
+  if type(data) ~= 'table' then
+    error({code=1, msg='Acquire(): resource ' .. self.rid .. ' does not exist'})
+  end
+
+  if type(jid) ~= 'string' then
+    error({code=2, msg='Acquire(): invalid jid; expected string, got \'' .. type(jid) .. '\''})
+  end
+
 
   -- check if already has a lock, then just return.  This is used for when multiple resources are needed.
   if redis.call('sismember', self:prefix('locks'), jid) == 1 then
@@ -155,7 +161,18 @@ function QlessResource:pending()
 end
 
 function QlessResource:exists()
-  return redis.call('exists', self:prefix())
+  return redis.call('exists', self:prefix()) == 1
+end
+
+---- Return true if all resources exist
+--
+function QlessResource.all_exist(resources)
+  for _, res in ipairs(resources) do
+    if redis.call('exists', QlessResource.ns .. res) == 0 then
+      return false
+    end
+  end
+  return true
 end
 
 -- Return resources pending

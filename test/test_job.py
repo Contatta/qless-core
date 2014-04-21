@@ -426,6 +426,6 @@ class TestJobsWithResources(TestQless):
     def test_error_if_attempts_to_acquire_nonexistent_resource(self):
         """Job requires invalid resource, generates error"""
 
-        self.assertRaisesRegexp(redis.ResponseError, r'resource r-1 does not exist',
+        self.assertRaisesRegexp(redis.ResponseError, r'invalid resources requested',
             self.lua, 'put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
 

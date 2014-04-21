@@ -13,6 +13,9 @@ class QlessRecorder(object):
     __name__ = 'QlessRecorder'
 
     def __init__(self, client):
+        """
+        @type client: redis.Redis
+        """
         self._client = client
         self._pubsub = self._client.pubsub()
         with open('qless.lua') as fin:
@@ -39,6 +42,13 @@ class QlessRecorder(object):
             return result
         except TypeError:
             return result
+
+    @property
+    def client(self):
+        """
+        @rtype redis.Redis
+        """
+        return self._client
 
     def flush(self):
         '''Flush the database'''

@@ -912,6 +912,25 @@ class TestResources(TestQless):
         self.assertEqual(res['locks'], ['jid-high'])
         self.assertEqual(res['pending'], ['jid-low'])
 
+    def test_job_popped_with_missing_resource_is_failed_and_next_valid_job_is_popped(self):
+        self.lua('config.set', 0, 'heartbeat', 10)
+        self.lua('config.set', 0, 'grace-period', 0)
+        self.lua('resource.set', 0, 'r-1', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        self.lua('put', 2, None, 'queue', 'jid-3', 'klass', {}, 0)
+
+        res = self.lua('pop', 1, 'queue', 'worker-1', 1)
+        self.assertEqual(1, len(res))
+        self.assertEqual('jid-1', res[0]['jid'])
+        self.lua.client.delete('ql:rs:r-1')
+
+        res = self.lua('pop', 22, 'queue', 'worker-2', 1)
+        self.assertEqual(1, len(res))
+        self.assertEqual('jid-3', res[0]['jid'])
+
+
 class TestMultipleResources(TestQless):
     """Queues should correctly handle jobs that require multiple resources"""
     def test_job_acquires_multiple_and_releases(self):
