@@ -47,6 +47,7 @@ class TestFail(TestQless):
             'tracked': False,
             'resources': {},
             'result_data': {},
+            'interval': 0,
             'worker': u''})
 
     def test_put(self):

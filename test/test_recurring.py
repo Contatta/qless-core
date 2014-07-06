@@ -241,6 +241,7 @@ class TestRecurring(TestQless):
 
     def test_rerecur_attributes(self):
         '''Re-recurring a job updates its attributes'''
+        self.maxDiff = None
         self.lua('recur', 0, 'queue', 'jid', 'klass', {}, 'interval', 60, 0,
             'priority', 10, 'tags', ['foo'], 'retries', 2)
         self.assertEqual(self.lua('pop', 0, 'queue', 'worker', 10)[0], {
@@ -262,6 +263,7 @@ class TestRecurring(TestQless):
             'tracked': False,
             'resources': {},
             'result_data': {},
+            'interval': 0,
             'worker': 'worker'})
         self.lua('recur', 60, 'queue', 'jid', 'class', {'foo': 'bar'},
             'interval', 10, 0, 'priority', 5, 'tags', ['bar'], 'retries', 5)
@@ -284,6 +286,7 @@ class TestRecurring(TestQless):
             'tracked': False,
             'resources': {},
             'result_data': {},
+            'interval': 0,
             'worker': 'worker'})
 
     def test_rerecur_move(self):

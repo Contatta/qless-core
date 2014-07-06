@@ -816,19 +816,20 @@ function QlessQueue:check_recurring(now, count)
       
       -- First, let's save its data
       redis.call('hmset', QlessJob.ns .. child_jid,
-        'jid'      , child_jid,
-        'klass'    , klass,
-        'data'     , data,
-        'priority' , priority,
-        'tags'     , tags,
-        'state'    , 'waiting',
-        'worker'   , '',
-        'expires'  , 0,
-        'queue'    , self.name,
-        'retries'  , retries,
-        'remaining', retries,
-        'resources', cjson.encode(resources),
-        'time'     , string.format("%.20f", score))
+        'jid'              , child_jid,
+        'klass'            , klass,
+        'data'             , data,
+        'priority'         , priority,
+        'tags'             , tags,
+        'state'            , 'waiting',
+        'worker'           , '',
+        'expires'          , 0,
+        'queue'            , self.name,
+        'retries'          , retries,
+        'remaining'        , retries,
+        'resources'        , cjson.encode(resources),
+        'throttle_interval', 0,
+        'time'             , string.format("%.20f", score))
 
       local job = Qless.job(child_jid)
       job:history(score, 'put', {q = self.name})

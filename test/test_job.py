@@ -52,7 +52,7 @@ class TestRequeue(TestQless):
         self.lua('put', 0, 'worker', 'queue', 'jid', 'klass', {}, 0)
         self.lua('cancel', 1, 'jid')
         self.assertRaisesRegexp(redis.ResponseError, r'does not exist',
-            self.lua, 'requeue', 2, 'worker', 'queue-2', 'jid', 'klass', {}, 0)
+                                self.lua, 'requeue', 2, 'worker', 'queue-2', 'jid', 'klass', {}, 0)
 
 class TestComplete(TestQless):
     '''Test how we complete jobs'''
@@ -149,11 +149,12 @@ class TestComplete(TestQless):
             'tracked': False,
             'resources': {},
             'result_data': {},
+            'interval': 0,
             'worker': u''})
 
     def test_result_data(self):
-        self.maxDiff = None
         '''Can complete and set result_data'''
+        self.maxDiff = None
         self.lua('put', 0, 'worker', 'queue', 'jid', 'klass', {}, 0)
         self.lua('pop', 1, 'queue', 'worker', 10)
         self.lua('complete', 2, 'jid', 'worker', 'queue', {}, 'result_data', {'key':'value'})
@@ -177,6 +178,7 @@ class TestComplete(TestQless):
             'tracked': False,
             'resources': {},
             'result_data': {'key':'value'},
+            'interval': 0,
             'worker': u''})
 
     def test_advance(self):

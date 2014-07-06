@@ -11,7 +11,7 @@ function QlessJob:data(...)
   local job = redis.call(
       'hmget', QlessJob.ns .. self.jid, 'jid', 'klass', 'state', 'queue',
       'worker', 'priority', 'expires', 'retries', 'remaining', 'data',
-      'tags', 'failure', 'resources', 'result_data')
+      'tags', 'failure', 'resources', 'result_data', 'throttle_interval')
 
   -- Return nil if we haven't found it
   if not job[1] then
@@ -36,6 +36,7 @@ function QlessJob:data(...)
     failure      = cjson.decode(job[12] or '{}'),
     resources    = cjson.decode(job[13] or '[]'),
     result_data  = cjson.decode(job[14] or '{}'),
+    interval     = tonumber(job[15]) or 0,
     dependents   = redis.call(
       'smembers', QlessJob.ns .. self.jid .. '-dependents'),
     dependencies = redis.call(
