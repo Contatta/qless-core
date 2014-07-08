@@ -20,22 +20,31 @@ function QlessResource:data(...)
   local data = {
     rid          = res[1],
     max          = tonumber(res[2] or 0),
-    pending      = redis.call('zrevrange', self:prefix('pending'), 0, -1),
-    locks        = redis.call('smembers', self:prefix('locks')),
+    pending      = self:pending(),
+    locks        = self:locks(),
   }
 
   return data
 end
 
+function QlessResource:get(...)
+  local res = redis.call(
+      'hmget', QlessResource.ns .. self.rid, 'rid', 'max')
+
+  -- Return nil if we haven't found it
+  if not res[1] then
+    return nil
+  end
+
+  return tonumber(res[2] or 0)
+end
+
 function QlessResource:set(now, max)
   local max = assert(tonumber(max), 'Set(): Arg "max" not a number: ' .. tostring(max))
 
-  local data = self:data()
-  local current_max = 0
-  if data == nil then
+  local current_max = self:get()
+  if current_max == nil then
     current_max = max
-  else
-    current_max = data['max']
   end
 
   local keyLocks = self:prefix('locks')
@@ -86,8 +95,8 @@ end
 
 function QlessResource:acquire(now, priority, jid)
   local keyLocks = self:prefix('locks')
-  local data = self:data()
-  if type(data) ~= 'table' then
+  local max = self:get()
+  if max == nil then
     error({code=1, msg='Acquire(): resource ' .. self.rid .. ' does not exist'})
   end
 
@@ -101,7 +110,7 @@ function QlessResource:acquire(now, priority, jid)
     return true
   end
 
-  local remaining = data['max'] - redis.pcall('scard', keyLocks)
+  local remaining = max - redis.pcall('scard', keyLocks)
 
   if remaining > 0 then
     -- acquire a lock and release it from the pending queue
@@ -148,15 +157,27 @@ function QlessResource:release(now, jid)
   return newJid
 end
 
---- Return the number of active locks for this resource
+--- Return the list of job IDs with locks for this resource
 --
 function QlessResource:locks()
+  return redis.call('smembers', self:prefix('locks'))
+end
+
+--- Return the number of active locks for this resource
+--
+function QlessResource:lock_count()
   return redis.call('scard', self:prefix('locks'))
 end
 
---- Return the number pending for this resource
+--- Return the list of job identifiers waiting for this resource
 --
 function QlessResource:pending()
+  return redis.call('zrevrange', self:prefix('pending'), 0, -1)
+end
+
+--- Return the number of jobs waiting for this resource
+--
+function QlessResource:pending_count()
   return redis.call('zcard', self:prefix('pending'))
 end
 

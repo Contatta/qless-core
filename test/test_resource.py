@@ -22,7 +22,7 @@ class TestResources(TestQless):
             ('resource.set', 0),
             ('resource.set', 0, 'test'),
             ('resource.set', 0, 'test', 'sfdgl'),
-            ('resource.get', 0),
+            ('resource.data', 0),
             ('resource.unset', 0),
             ('resource.locks', 0),
         ])
@@ -36,19 +36,47 @@ class TestResources(TestQless):
         self.lua('resource.set', 0, 'test', 5)
         res = self.lua('resource.get', 0, 'test')
 
-        self.assertEquals(res['rid'], 'test')
-        self.assertEquals(res['max'], 5)
+        self.assertEquals(res, 5)
+
+    def test_does_not_exist(self):
+        res = self.lua('resource.exists', 0, 'test')
+
+        self.assertFalse(res)
+
+    def test_does_exist(self):
+        self.lua('resource.set', 0, 'test', 5)
+        res = self.lua('resource.exists', 0, 'test')
+
+        self.assertTrue(res)
 
     def test_unset(self):
         self.lua('resource.set', 0, 'test', 5)
-        self.assertIsInstance(self.lua('resource.get', 0, 'test'), dict)
+        self.assertIsInstance(self.lua('resource.data', 0, 'test'), dict)
         self.lua('resource.unset', 0, 'test')
-        self.assertIsNone(self.lua('resource.get', 0, 'test'))
+        self.assertIsNone(self.lua('resource.data', 0, 'test'))
 
-    def test_locks(self):
+    def test_lock_count(self):
         self.lua('resource.set', 0, 'test', 5)
-        locks = self.lua('resource.locks', 0, 'test')
+        locks = self.lua('resource.lock_count', 0, 'test')
         self.assertEquals(locks, 0)
+
+    def test_pending_count(self):
+        self.lua('resource.set', 0, 'test', 5)
+        locks = self.lua('resource.pending_count', 0, 'test')
+        self.assertEquals(locks, 0)
+
+    def test_does_add_lock_and_pending(self):
+        self.lua('resource.set', 0, 'r-1', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
+        self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1'])
+
+        locks = self.lua('resource.locks', 0, 'r-1')
+        pending = self.lua('resource.pending', 0, 'r-1')
+
+        self.assertEqual(locks, ['jid-1'])
+        self.assertEqual(pending, ['jid-2'])
+
 
     def test_does_not_add_lock_and_pending(self):
         self.lua('resource.set', 0, 'r-1', 1)
@@ -56,7 +84,7 @@ class TestResources(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
 
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], {})
@@ -69,11 +97,11 @@ class TestResources(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1','r-2'])
         self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-2'])
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-2'])
 
@@ -85,11 +113,11 @@ class TestResources(TestQless):
         # increase the resources and should get the locks
         self.lua('resource.set', 0, 'r-1', 2)
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1','jid-2'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-2'])
 
@@ -99,11 +127,11 @@ class TestResources(TestQless):
 
         #then increase the other resource and both should be waiting on the queue
         self.lua('resource.set', 0, 'r-2', 2)
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1','jid-2'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-1','jid-2'])
         self.assertEqual(res['pending'], {})
 
@@ -121,11 +149,11 @@ class TestResources(TestQless):
         self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
         self.lua('put', 2, None, 'queue', 'jid-3', 'klass', {}, 0, 'resources', ['r-1','r-2'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1','jid-2'])
         self.assertEqual(res['pending'], ['jid-3'])
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-1','jid-2'])
         self.assertEqual(res['pending'], ['jid-3'])
 
@@ -149,11 +177,11 @@ class TestResources(TestQless):
         self.lua('complete', 4, 'jid-1', 'worker-1', 'queue', {})
 
         #verify jid-3 still pending on r-2 but gets r-1
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2','jid-3'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], ['jid-3'])
 
@@ -170,11 +198,11 @@ class TestResources(TestQless):
 
         self.lua('complete', 5, 'jid-2', 'worker-1', 'queue', {})
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-3'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], ['jid-3'])
 
@@ -185,11 +213,11 @@ class TestResources(TestQless):
         #now finally increase r-2 to 1 and verify job gets picked up.
         self.lua('resource.set', 6, 'r-2', 1)
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-3'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-3'])
         self.assertEqual(res['pending'], {})
 

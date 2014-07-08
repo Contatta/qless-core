@@ -224,11 +224,20 @@ QlessAPI['resource.set'] = function(now, rid, max)
 end
 
 QlessAPI['resource.get'] = function(now, rid)
+  return Qless.resource(rid):get()
+end
+
+QlessAPI['resource.data'] = function(now, rid)
   local data = Qless.resource(rid):data()
   if not data then
     return nil
   end
+
   return cjson.encode(data)
+end
+
+QlessAPI['resource.exists'] = function(now, rid)
+  return Qless.resource(rid):exists()
 end
 
 QlessAPI['resource.unset'] = function(now, rid)
@@ -236,7 +245,30 @@ QlessAPI['resource.unset'] = function(now, rid)
 end
 
 QlessAPI['resource.locks'] = function(now, rid)
-  return Qless.resource(rid):locks()
+  local data = Qless.resource(rid):locks()
+  if not data then
+    return nil
+  end
+
+  return cjson.encode(data)
+end
+
+QlessAPI['resource.lock_count'] = function(now, rid)
+  return Qless.resource(rid):lock_count()
+end
+
+QlessAPI['resource.pending'] = function(now, rid)
+  local data = Qless.resource(rid):pending()
+    if not data then
+    return nil
+  end
+
+  return cjson.encode(data)
+
+end
+
+QlessAPI['resource.pending_count'] = function(now, rid)
+  return Qless.resource(rid):pending_count()
 end
 
 QlessAPI['resource.stats_pending'] = function(now)
