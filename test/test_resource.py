@@ -77,6 +77,53 @@ class TestResources(TestQless):
         self.assertEqual(locks, ['jid-1'])
         self.assertEqual(pending, ['jid-2'])
 
+    def test_resource_set_increase(self):
+        self.lua('resource.set', 0, 'r-1', 0)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
+        self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1'])
+
+        locks = self.lua('resource.locks', 0, 'r-1')
+        pending = self.lua('resource.pending', 0, 'r-1')
+
+        self.assertEqual(locks, {})
+        self.assertEqual(pending, ['jid-2','jid-1'])
+
+	self.lua('resource.set', 0, 'r-1', 1)
+        locks = self.lua('resource.locks', 0, 'r-1')
+        pending = self.lua('resource.pending', 0, 'r-1')
+
+        self.assertEqual(locks, ['jid-2'])
+        self.assertEqual(pending, ['jid-1'])
+
+    def test_lock_and_pending_on_recur(self):
+
+        self.lua('resource.set', 0, 'r-1', 0)
+
+        self.lua('recur', 0, 'queue', 'jid-1', 'klass', {}, 'interval', 60, 0, 'resources', ['r-1'])
+        self.lua('recur', 0, 'queue', 'jid-2', 'klass', {}, 'interval', 60, 0, 'resources', ['r-1'])
+
+        popped = self.lua('pop', 0, 'queue', 'worker', 10)
+        self.assertEqual(len(popped), 0)
+
+        locks = self.lua('resource.locks', 0, 'r-1')
+        pending = self.lua('resource.pending', 0, 'r-1')
+
+        self.assertEqual(locks, {})
+        self.assertEqual(pending, ['jid-2-1','jid-1-1'])
+
+        self.lua('resource.set', 1, 'r-1', 1)
+
+        locks = self.lua('resource.locks', 0, 'r-1')
+        pending = self.lua('resource.pending', 0, 'r-1')
+
+        self.assertEqual(locks, ['jid-2-1'])
+        self.assertEqual(pending, ['jid-1-1'])
+
+        popped = self.lua('pop', 2, 'queue', 'worker', 10)
+        self.assertEqual(len(popped), 1)
+        self.assertEqual(popped[0]['jid'], 'jid-2-1')
+
 
     def test_does_not_add_lock_and_pending(self):
         self.lua('resource.set', 0, 'r-1', 1)

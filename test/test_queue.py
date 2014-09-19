@@ -137,7 +137,7 @@ class TestJobs(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 1, 'resources', ['r-1'])
         scheduled = self.lua('jobs', 0, 'scheduled', 'queue')
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
 
@@ -148,7 +148,7 @@ class TestJobs(TestQless):
 
         jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], {})
 
@@ -157,14 +157,14 @@ class TestJobs(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 1, 'resources', ['r-1'])
         self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
         # will trigger scheduled job also, but will not pop
         jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], ['jid-1'])
 
@@ -173,14 +173,14 @@ class TestJobs(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 1, 'resources', ['r-1'])
         self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
         # will trigger scheduled job also, but will not pop
         jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], ['jid-1'])
 
@@ -188,7 +188,7 @@ class TestJobs(TestQless):
 
         jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
         self.assertEqual(len(jobs), 1)
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], {})
 
@@ -881,7 +881,7 @@ class TestResources(TestQless):
 
         res = self.lua('pop', 15, 'queue', 'worker-1', 1)
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1-1'])
         self.assertEqual(res['pending'], {})
 
@@ -895,7 +895,7 @@ class TestResources(TestQless):
 
         res = self.lua('pop', 15, 'queue', 'worker-1', 5)
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], ['jid-1-1'])
 
@@ -912,7 +912,7 @@ class TestResources(TestQless):
         res = self.lua('pop', 16, 'queue', 'worker-1', 1)
         self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-high'])
         self.assertEqual(res['pending'], ['jid-low'])
 
@@ -950,22 +950,22 @@ class TestMultipleResources(TestQless):
         #job = res[0]
         #self.assertEquals(job['jid'], 'jid-1')
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], {})
 
         res = self.lua('pop', 15, 'queue', 'worker-1', 1)
         self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
 
@@ -978,11 +978,11 @@ class TestMultipleResources(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1'])
         self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-2'])
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
@@ -990,11 +990,11 @@ class TestMultipleResources(TestQless):
         res = self.lua('pop', 15, 'queue', 'worker-1', 1)
         self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
@@ -1002,11 +1002,11 @@ class TestMultipleResources(TestQless):
         res = self.lua('pop', 15, 'queue', 'worker-1', 1)
         self.lua('complete', 17, 'jid-2', 'worker-1', 'queue', {})
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
 
@@ -1018,11 +1018,11 @@ class TestMultipleResources(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1','r-2'])
         self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-2'])
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-2'])
 
@@ -1030,11 +1030,11 @@ class TestMultipleResources(TestQless):
         res = self.lua('pop', 15, 'queue', 'worker-1', 1)
         self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
@@ -1046,11 +1046,11 @@ class TestMultipleResources(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'resources', ['r-1','r-2'])
         self.lua('put', 1, None, 'queue', 'jid-2', 'klass', {}, 0, 'resources', ['r-1','r-2'])
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-2'])
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-1','jid-2'])
         self.assertEqual(res['pending'], {})
 
@@ -1058,11 +1058,11 @@ class TestMultipleResources(TestQless):
         res = self.lua('pop', 15, 'queue', 'worker-1', 1)
         self.lua('complete', 17, 'jid-1', 'worker-1', 'queue', {})
 
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], {})
 
@@ -1078,12 +1078,12 @@ class TestMultipleResources(TestQless):
         self.lua('put', 3, None, 'queue', 'jid-4', 'klass', {}, 0, 'resources', ['r-1'])
 
         # jobs 3 and 4 are witing on r-1
-        res = self.lua('resource.get', 0, 'r-1')
+        res = self.lua('resource.data', 0, 'r-1')
         self.assertEqual(res['locks'], ['jid-1'])
         self.assertEqual(res['pending'], ['jid-3','jid-4'])
 
         #job 3 is waiting on r-2
-        res = self.lua('resource.get', 0, 'r-2')
+        res = self.lua('resource.data', 0, 'r-2')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], ['jid-3'])
 
@@ -1105,12 +1105,12 @@ class TestMultipleResources(TestQless):
         })
 
         # jobs 3 has the lock on r-1, job 4 is pending
-        res = self.lua('resource.get', 19, 'r-1')
+        res = self.lua('resource.data', 19, 'r-1')
         self.assertEqual(res['locks'], ['jid-3'])
         self.assertEqual(res['pending'], ['jid-4'])
 
         #job 3 is waiting on r-1
-        res = self.lua('resource.get', 19, 'r-2')
+        res = self.lua('resource.data', 19, 'r-2')
         self.assertEqual(res['locks'], ['jid-2'])
         self.assertEqual(res['pending'], ['jid-3'])
 
@@ -1127,12 +1127,12 @@ class TestMultipleResources(TestQless):
         })
 
          # jobs 3 has the lock on r-1, job 4 is pending
-        res = self.lua('resource.get', 20, 'r-1')
+        res = self.lua('resource.data', 20, 'r-1')
         self.assertEqual(res['locks'], ['jid-3'])
         self.assertEqual(res['pending'], ['jid-4'])
 
         #job 3 has the lock on r-2
-        res = self.lua('resource.get', 20, 'r-2')
+        res = self.lua('resource.data', 20, 'r-2')
         self.assertEqual(res['locks'], ['jid-3'])
         self.assertEqual(res['pending'], {})
 
@@ -1148,12 +1148,12 @@ class TestMultipleResources(TestQless):
         })
 
         # jobs 4 has the lock on r-1
-        res = self.lua('resource.get', 21, 'r-1')
+        res = self.lua('resource.data', 21, 'r-1')
         self.assertEqual(res['locks'], ['jid-4'])
         self.assertEqual(res['pending'], {})
 
         #r-2 is empty
-        res = self.lua('resource.get', 21, 'r-2')
+        res = self.lua('resource.data', 21, 'r-2')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
 
