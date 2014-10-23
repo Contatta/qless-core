@@ -429,9 +429,9 @@ function QlessQueue:put(now, worker, jid, klass, raw_data, delay, ...)
 
   -- Let's see what the old priority and tags were
   local job = Qless.job(jid)
-  local priority, tags, oldqueue, state, failure, retries, oldworker, interval, next_run =
+  local priority, tags, oldqueue, state, failure, retries, oldworker, interval, next_run, old_resources =
     unpack(redis.call('hmget', QlessJob.ns .. jid, 'priority', 'tags',
-      'queue', 'state', 'failure', 'retries', 'worker', 'throttle_interval', 'throttle_next_run'))
+      'queue', 'state', 'failure', 'retries', 'worker', 'throttle_interval', 'throttle_next_run', 'resources'))
 
   next_run = next_run or now
 
@@ -464,6 +464,15 @@ function QlessQueue:put(now, worker, jid, klass, raw_data, delay, ...)
   local resources = assert(cjson.decode(options['resources'] or '[]'),
     'Put(): Arg "resources" not JSON array: '     .. tostring(options['resources']))
   assert(#resources == 0 or QlessResource.all_exist(resources), 'Put(): invalid resources requested')
+
+    -- if there were previously acquired resources, verify consistency
+  if old_resources then
+    old_resources = Set.new(cjson.decode(old_resources))
+    local removed_resources = Set.diff(old_resources, Set.new(resources))
+    for k in pairs(removed_resources) do
+      Qless.resource(k):release(now, jid)
+    end
+  end
 
   local interval = assert(tonumber(options['interval'] or interval or 0),
     'Put(): Arg "interval" not a number: ' .. tostring(options['interval']))

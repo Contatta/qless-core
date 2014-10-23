@@ -89,7 +89,7 @@ class TestResources(TestQless):
         self.assertEqual(locks, {})
         self.assertEqual(pending, ['jid-2','jid-1'])
 
-	self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-1', 1)
         locks = self.lua('resource.locks', 0, 'r-1')
         pending = self.lua('resource.pending', 0, 'r-1')
 

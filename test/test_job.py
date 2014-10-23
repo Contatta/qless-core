@@ -421,7 +421,108 @@ class TestJobsWithResources(TestQless):
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
 
-    def test_expired_releases_resources_to_next_job(self):
+    def test_multiple_resources(self):
+        """Job times out, releases acquired resources"""
+
+        self.lua('config.set', 0, 'heartbeat', 10)
+        self.lua('config.set', 0, 'grace-period', 0)
+
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-2', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1', 'r-2'])
+        self.lua('put', 2, None, 'queue', 'jid-3', 'klass', {}, 0, 'retries', 0, 'resources', ['r-2'])
+
+        jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]['jid'], 'jid-1')
+
+        jobs = self.lua('pop', 1, 'queue', 'worker-2', 1)
+        self.assertEqual(len(jobs), 0)
+
+        self.lua('complete', 3, 'jid-1', 'worker-1', 'queue', {})
+        jobs = self.lua('pop', 4, 'queue', 'worker-1', 1)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]['jid'], 'jid-2')
+
+        self.lua('complete', 4, 'jid-2', 'worker-1', 'queue', {})
+
+        jobs = self.lua('pop', 4, 'queue', 'worker-2', 1)
+        self.lua('complete', 5, 'jid-3', 'worker-2', 'queue', {})
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]['jid'], 'jid-3')
+
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+        res = self.lua('resource.data', 0, 'r-2')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+    def test_put_removes_lock_for_existing_resource(self):
+        self.lua('config.set', 0, 'heartbeat', 10)
+        self.lua('config.set', 0, 'grace-period', 0)
+
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], {})
+
+        self.lua('put', 1, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', [])
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+        jobs = self.lua('pop', 2, 'queue', 'worker-1', 1)
+        jid = self.lua('complete', 5, 'jid-1', 'worker-1', 'queue', {})
+        self.assertEqual(jid, 'complete')
+
+    def test_put_removes_lock_for_existing_resource_and_assigns_to_waiting_job(self):
+        self.lua('config.set', 0, 'heartbeat', 10)
+        self.lua('config.set', 0, 'grace-period', 0)
+
+        self.lua('resource.set', 0, 'r-1', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], ['jid-2'])
+
+        self.lua('put', 1, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', [])
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+    def test_put_updates_locks_for_existing_resource(self):
+        self.lua('config.set', 0, 'heartbeat', 10)
+        self.lua('config.set', 0, 'grace-period', 0)
+
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('resource.set', 0, 'r-2', 1)
+
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], {})
+        res = self.lua('resource.data', 0, 'r-2')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+
+        self.lua('put', 1, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-2'])
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], {})
+        self.assertEqual(res['pending'], {})
+        res = self.lua('resource.data', 0, 'r-2')
+        self.assertEqual(res['locks'], ['jid-1'])
+        self.assertEqual(res['pending'], {})
+
+
+    def test_expired_releases_resources_to_next_job_with_no_grace(self):
         """Job times out, releases acquired resources and assigns to next job"""
 
         self.lua('config.set', 0, 'heartbeat', 10)
@@ -432,6 +533,24 @@ class TestJobsWithResources(TestQless):
         self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
 
         jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
+        jobs = self.lua('pop', 22, 'queue', 'worker-2', 1)
+
+        res = self.lua('resource.data', 0, 'r-1')
+        self.assertEqual(res['locks'], ['jid-2'])
+        self.assertEqual(res['pending'], {})
+
+    def test_expired_releases_resources_to_next_job_with_grace(self):
+        """Job times out, releases acquired resources and assigns to next job"""
+
+        self.lua('config.set', 0, 'heartbeat', 10)
+        self.lua('config.set', 0, 'grace-period', 10)
+
+        self.lua('resource.set', 0, 'r-1', 1)
+        self.lua('put', 0, None, 'queue', 'jid-1', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+        self.lua('put', 0, None, 'queue', 'jid-2', 'klass', {}, 0, 'retries', 0, 'resources', ['r-1'])
+
+        jobs = self.lua('pop', 1, 'queue', 'worker-1', 1)
+        jobs = self.lua('pop', 11, 'queue', 'worker-2', 1)
         jobs = self.lua('pop', 22, 'queue', 'worker-2', 1)
 
         res = self.lua('resource.data', 0, 'r-1')

@@ -848,9 +848,7 @@ function QlessJob:acquire_resources(now)
     end
     acquired_all = acquired_all and res
   end
---  if acquired_all == false then
---    redis.call('hset', QlessJob.ns .. self.jid, 'state', state)
---  end
+
   return acquired_all
 end
 
