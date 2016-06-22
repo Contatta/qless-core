@@ -207,7 +207,7 @@ end
 --      }
 --  ]
 function QlessResource.pending_counts(now)
-  local search = QlessResource.ns..'*pending'
+  local search = QlessResource.ns..'*-pending'
   local reply = redis.call('keys', search)
   local response = {}
   for index, rname in ipairs(reply) do
@@ -229,7 +229,7 @@ end
 --      }
 --  ]
 function QlessResource.locks_counts(now)
-  local search = QlessResource.ns..'*locks'
+  local search = QlessResource.ns..'*-locks'
   local reply = redis.call('keys', search)
   local response = {}
   for index, rname in ipairs(reply) do
