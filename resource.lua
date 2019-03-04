@@ -10,7 +10,7 @@
 -- appropriate properties
 function QlessResource:data(...)
   local res = redis.call(
-      'hmget', QlessResource.ns .. self.rid, 'rid', 'max')
+    'hmget', QlessResource.ns .. self.rid, 'rid', 'max')
 
   -- Return nil if we haven't found it
   if not res[1] then
@@ -29,7 +29,7 @@ end
 
 function QlessResource:get(...)
   local res = redis.call(
-      'hmget', QlessResource.ns .. self.rid, 'rid', 'max')
+    'hmget', QlessResource.ns .. self.rid, 'rid', 'max')
 
   -- Return nil if we haven't found it
   if not res[1] then

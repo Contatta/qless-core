@@ -259,7 +259,7 @@ end
 
 QlessAPI['resource.pending'] = function(now, rid)
   local data = Qless.resource(rid):pending()
-    if not data then
+  if not data then
     return nil
   end
 

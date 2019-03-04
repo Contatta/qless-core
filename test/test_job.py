@@ -52,7 +52,7 @@ class TestRequeue(TestQless):
         self.lua('put', 0, 'worker', 'queue', 'jid', 'klass', {}, 0)
         self.lua('cancel', 1, 'jid')
         self.assertRaisesRegexp(redis.ResponseError, r'does not exist',
-                                self.lua, 'requeue', 2, 'worker', 'queue-2', 'jid', 'klass', {}, 0)
+            self.lua, 'requeue', 2, 'worker', 'queue-2', 'jid', 'klass', {}, 0)
 
 class TestComplete(TestQless):
     '''Test how we complete jobs'''
@@ -147,10 +147,11 @@ class TestComplete(TestQless):
             'state': 'complete',
             'tags': {},
             'tracked': False,
+            'worker': u'',
             'resources': {},
             'result_data': {},
             'interval': 0,
-            'worker': u''})
+            'spawned_from_jid': False})
 
     def test_result_data(self):
         '''Can complete and set result_data'''
@@ -179,7 +180,8 @@ class TestComplete(TestQless):
             'resources': {},
             'result_data': {'key':'value'},
             'interval': 0,
-            'worker': u''})
+            'worker': u'',
+            'spawned_from_jid': False})
 
     def test_advance(self):
         '''Can complete and advance a job in one fell swooop'''
@@ -203,6 +205,13 @@ class TestComplete(TestQless):
         self.lua('pop', 1, 'queue', 'worker', 10)
         self.assertRaisesRegexp(redis.ResponseError, r'another worker',
             self.lua, 'complete', 2, 'jid', 'another', 'queue', {})
+
+    def test_wrong_queue(self):
+        '''A job can only be completed in the queue it's in'''
+        self.lua('put', 0, 'worker', 'queue', 'jid', 'klass', {}, 0)
+        self.lua('pop', 1, 'queue', 'worker', 10)
+        self.assertRaisesRegexp(redis.ResponseError, r'another queue',
+            self.lua, 'complete', 2, 'jid', 'worker', 'another-queue', {})
 
     def test_expire_complete_count(self):
         '''Jobs expire after a k complete jobs'''
@@ -262,7 +271,6 @@ class TestComplete(TestQless):
         self.assertEqual(res['pending'], {})
 
 
-
 class TestCancel(TestQless):
     '''Canceling jobs'''
     def test_cancel_waiting(self):
@@ -310,7 +318,7 @@ class TestCancel(TestQless):
         self.lua('pop', 1, 'queue', 'worker', 10)
         self.lua('heartbeat', 2, 'jid', 'worker', {})
         self.lua('cancel', 3, 'jid')
-        self.assertRaisesRegexp(redis.ResponseError, r'Job does not exist',
+        self.assertRaisesRegexp(redis.ResponseError, r'Job jid does not exist',
             self.lua, 'heartbeat', 4, 'jid', 'worker', {})
 
     def test_cancel_retries(self):

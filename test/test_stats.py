@@ -137,5 +137,3 @@ class TestStats(TestQless):
         self.lua('resource.set', 0, 'r-1', 2)
         self.assertEqual(self.lua('resource.stats_pending',0)[0]['name'],'ql:rs:r-2-pending')
         self.assertEqual(self.lua('resource.stats_pending',0)[0]['count'], 1)
-
-

@@ -24,7 +24,7 @@ end
 function Set.diff(a,b)
   local res = Set.new{}
   for k in pairs(a) do
-      if not b[k] then res[k] = true end
+    if not b[k] then res[k] = true end
   end
 
   return res

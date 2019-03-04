@@ -271,26 +271,3 @@ class TestResources(TestQless):
         expected['waiting'] = 1
         self.assertEqual(self.lua('queues', 0, 'queue'), expected)
         self.assertEqual(self.lua('queues', 0), [expected])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

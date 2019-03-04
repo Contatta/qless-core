@@ -294,7 +294,6 @@ class TestQueue(TestQless):
 
         self.assertFalse(self.lua('paused', 0, 'queue'))
 
-
     def test_advance(self):
         '''When advancing a job to a new queue, queues should know about it'''
         self.lua('put', 0, 'worker', 'queue', 'jid', 'klass', {}, 0)
@@ -388,10 +387,11 @@ class TestPut(TestQless):
             'state': 'waiting',
             'tags': {},
             'tracked': False,
+            'worker': u'',
             'resources': {},
             'result_data': {},
             'interval': 0,
-            'worker': u''
+            'spawned_from_jid': False
         })
 
     def test_data_as_array(self):
@@ -463,10 +463,11 @@ class TestPut(TestQless):
             'state': 'waiting',
             'tags': {},
             'tracked': False,
+            'worker': u'',
             'resources': {},
             'result_data': {},
             'interval': 0,
-            'worker': u''})
+            'spawned_from_jid': False})
 
     def test_move_update(self):
         '''When moving, ensure data's only changed when overridden'''
@@ -608,10 +609,6 @@ class TestPut(TestQless):
         self.assertEqual(res[0]['jid'], 'jid-1')
 
 
-
-
-
-
 class TestPeek(TestQless):
     '''Test peeking jobs'''
     # For reference:
@@ -647,10 +644,11 @@ class TestPeek(TestQless):
             'state': 'waiting',
             'tags': {},
             'tracked': False,
+            'worker': u'',
             'resources': {},
             'result_data': {},
             'interval': 0,
-            'worker': u''
+            'spawned_from_jid': False
         }])
         # With several jobs in the queue, we should be able to see more
         self.lua('put', 2, 'worker', 'foo', 'jid2', 'klass', {}, 0)
@@ -716,7 +714,6 @@ class TestPeek(TestQless):
         self.assertEqual(len(res), 2)
 
 
-
 class TestPop(TestQless):
     '''Test popping jobs'''
     # For reference:
@@ -754,10 +751,11 @@ class TestPop(TestQless):
             'state': 'running',
             'tags': {},
             'tracked': False,
+            'worker': 'worker',
             'resources': {},
             'result_data': {},
             'interval': 0,
-            'worker': 'worker'}])
+            'spawned_from_jid': False}])
 
     def test_pop_many(self):
         '''We should be able to pop off many jobs'''
@@ -928,7 +926,7 @@ class TestResources(TestQless):
         res = self.lua('pop', 1, 'queue', 'worker-1', 1)
         self.assertEqual(1, len(res))
         self.assertEqual('jid-1', res[0]['jid'])
-        self.lua.client.delete('ql:rs:r-1')
+        self.lua('resource.unset', 0, 'r-1', 1)
 
         res = self.lua('pop', 22, 'queue', 'worker-2', 1)
         self.assertEqual(1, len(res))
@@ -1156,18 +1154,3 @@ class TestMultipleResources(TestQless):
         res = self.lua('resource.data', 21, 'r-2')
         self.assertEqual(res['locks'], {})
         self.assertEqual(res['pending'], {})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
