@@ -62,6 +62,7 @@ QlessAPI.complete = function(now, jid, worker, queue, data, ...)
 end
 
 QlessAPI.failed = function(now, group, start, limit)
+  group = tonil(group)
   return cjson.encode(Qless.failed(group, start, limit))
 end
 
